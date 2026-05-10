@@ -184,6 +184,15 @@ export type TelegramEditMessageTextBody = Record<string, unknown> & {
   parse_mode?: "HTML";
 };
 
+export type TelegramSendMessageDraftBody = Record<string, unknown> & {
+  chat_id: number;
+  draft_id: number;
+  text?: string;
+  parse_mode?: string;
+  entities?: unknown[];
+  message_thread_id?: number;
+};
+
 interface TelegramApiResponse<T> {
   ok: boolean;
   result?: T;
@@ -275,7 +284,8 @@ export interface TelegramBridgeApiRuntime {
   sendMessageDraft: (
     chatId: number,
     draftId: number,
-    text: string,
+    text?: string,
+    options?: { parse_mode?: string; entities?: unknown[]; message_thread_id?: number },
   ) => Promise<boolean>;
   sendMessage: (body: TelegramSendMessageBody) => Promise<TelegramSentMessage>;
   editMessageText: (
@@ -732,13 +742,16 @@ export function createTelegramBridgeApiRuntime(
         }),
       "typing",
     ),
-    sendMessageDraft: (chatId, draftId, text) => {
-      if (text.length === 0) return Promise.resolve(false);
-      return callRecorded<boolean>("sendMessageDraft", {
+    sendMessageDraft: (chatId, draftId, text, options) => {
+      const body: Record<string, unknown> = {
         chat_id: chatId,
         draft_id: draftId,
-        text,
-      });
+      };
+      if (text !== undefined) body.text = text;
+      if (options?.parse_mode !== undefined) body.parse_mode = options.parse_mode;
+      if (options?.entities !== undefined) body.entities = options.entities;
+      if (options?.message_thread_id !== undefined) body.message_thread_id = options.message_thread_id;
+      return callRecorded<boolean>("sendMessageDraft", body);
     },
     sendMessage: (body) =>
       callRecorded<TelegramSentMessage>("sendMessage", body),

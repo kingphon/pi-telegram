@@ -540,7 +540,15 @@ test("Telegram bridge API runtime exposes typed Bot API helpers", async () => {
   assert.equal(await runtime.sendChatAction(1, "typing"), true);
   assert.equal(await runtime.sendTypingAction(2), true);
   assert.equal(await runtime.sendMessageDraft(1, 2, "draft"), true);
-  assert.equal(await runtime.sendMessageDraft(1, 2, ""), false);
+  assert.equal(await runtime.sendMessageDraft(1, 2, ""), true);
+  assert.equal(await runtime.sendMessageDraft(1, 2, undefined), true);
+  assert.equal(
+    await runtime.sendMessageDraft(1, 2, "rich", {
+      parse_mode: "HTML",
+      entities: [{ type: "bold", offset: 0, length: 4 }],
+    }),
+    true,
+  );
   assert.deepEqual(await runtime.sendMessage({ chat_id: 1, text: "hello" }), {
     message_id: 9,
   });
@@ -556,6 +564,24 @@ test("Telegram bridge API runtime exposes typed Bot API helpers", async () => {
     {
       method: "sendMessageDraft",
       body: { chat_id: 1, draft_id: 2, text: "draft" },
+    },
+    {
+      method: "sendMessageDraft",
+      body: { chat_id: 1, draft_id: 2, text: "" },
+    },
+    {
+      method: "sendMessageDraft",
+      body: { chat_id: 1, draft_id: 2 },
+    },
+    {
+      method: "sendMessageDraft",
+      body: {
+        chat_id: 1,
+        draft_id: 2,
+        text: "rich",
+        parse_mode: "HTML",
+        entities: [{ type: "bold", offset: 0, length: 4 }],
+      },
     },
     { method: "sendMessage", body: { chat_id: 1, text: "hello" } },
   ]);
