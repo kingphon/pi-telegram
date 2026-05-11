@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.10.0: Extension Sections Platform
+
+- `[Extension Sections]` Implemented the Telegram Extension Sections platform: extensions can register structured UI sections that appear in the main Telegram application menu and Settings submenu without owning a second bot poller.
+- `[Registry]` Added `lib/extension-sections.ts` with a section registry (`createTelegramExtensionSectionRegistry`), token-based callback routing (`section:<token>:<action>:<payload>`), main-menu row injection, settings submenu row injection, `registerTelegramSection()` globalThis bridge for ordinary pi extensions, and diagnostics.
+- `[API]` Exported `registerTelegramSection(section)` / `getTelegramSectionDiagnostics()` from `@llblab/pi-telegram/lib/extension-sections.ts`. Extensions receive narrow typed context ports (`TelegramSectionContext` / `TelegramSectionCallbackContext`) with `answerCallback`, `edit`, `open`, and `enqueuePrompt`.
+- `[Main Menu]` Section rows are injected before the built-in **Settings** row in the status/application menu. Sections render their own inline-keyboard views with an automatic `⬆️ Main menu` back button.
+- `[Settings Submenu]` Extension settings rows appear before built-in settings controls. Each section can expose an optional `settings` block with its own `open` and `handleCallback`.
+- `[Callback Routing]` `section:` is now a pi-telegram-owned callback prefix. Section callbacks are dispatched before built-in menu handling. Stale tokens receive a graceful "no longer available" answer. Unknown section callbacks fall through to the existing callback namespace fallback.
+- `[Menu Integration]` Updated `menu-status.ts` to accept a `sectionRegistry` and inject section rows before Settings. Updated `menu-settings.ts` to accept a `sectionRegistry` and inject extension settings rows before built-in controls. Updated `menu.ts` to parse and dispatch `section:` callbacks through the registry.
+- `[Demo]` Added `@llblab/pi-telegram-extension-demo` — a companion pi extension demonstrating section registration, a read-only Explorer UI with prompt enqueue, and a settings toggle. The demo lives in `extensions/pi-telegram-extension-demo/`.
+- `[Tests]` Added 26 regression tests in `tests/extension-sections.test.ts` covering registry lifecycle, main-menu and settings row ordering, callback parsing, section open/callback/settings-open dispatch, stale token handling, handler fallback, and back-button dedup.
+
 ## 0.9.9: Guest Mode HTML Rendering
 
 - `[Guest Mode]` Guest replies now render through the same `renderTelegramMessage` pipeline as direct messages: Markdown → HTML → `answerGuestQuery` with `parse_mode: "HTML"`. Bold, italic, code, links, lists, and tables render identically in guest and DM replies.
@@ -28,7 +40,7 @@
 
 ## 0.9.6: Runtime Adapter Positioning
 
-- `[Package]` Bumped package metadata to `0.9.6` and repositioned the package description from "Better Telegram DM bridge extension for π" to "Telegram Runtime Adapter for π". Impact: package metadata now reflects the runtime adapter/operator-console role rather than a narrow pipe metaphor.
+- `[Package]` Bumped package metadata to `0.9.6` and repositioned the package description from "Better Telegram DM bridge extension for π" to "Telegram runtime adapter for π". Impact: package metadata now reflects the runtime adapter/operator-console role rather than a narrow pipe metaphor.
 - `[Telegram API]` Introduced `TELEGRAM_API_BASE` for the Bot API endpoint and documented native HTTP/HTTPS proxy operation through `HTTP_PROXY`, `HTTPS_PROXY`, `NO_PROXY`, and explicit `NODE_USE_ENV_PROXY=1` / `--use-env-proxy` enablement. Impact: users behind corporate proxies, local HTTP tunnels, or restricted networks get a zero-runtime-dependency proxy path without replacing native `fetch`; SOCKS5 remains outside the zero-dependency core.
 - `[Dependencies]` Refreshed the lockfile transitive dependency set so `npm audit` clears current `fast-uri` and `fast-xml-builder` advisories inherited through development peer installs. Impact: the full `npm run validate` pipeline passes without changing runtime dependencies.
 - `[README]` Restructured the user entrypoint around install → connect → use → core features → docs, then consolidated examples, terminology, proxy setup, `PI_CODING_AGENT_DIR`, and other environment-only configuration around the runtime-adapter/operator-console model. Impact: first-time users get a clearer path from installation to operation, while vivid examples and non-UI runtime knobs stay discoverable.
