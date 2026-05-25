@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 0.13.2: Config Recovery And Inbound Output Bounds Hotfix
+
+- `[Config]` Invalid `telegram.json` now recovers on session startup by renaming the broken file to an `.invalid-*` recovery path, loading safe empty defaults, and recording a runtime diagnostic. Impact: a hand-edited or partially written config no longer bricks `/telegram-setup` or session startup.
+- `[Inbound]` Inbound handler, programmatic handler, voice transcription, and built-in text attachment outputs are now bounded before entering Telegram prompt context. Impact: large OCR, PDF, STT, or text-file outputs cannot silently explode prompt size.
+- `[Diagnostics]` Runtime event messages/details and inbound handler failure stdout/stderr are truncated before storage/rendering. Impact: `/telegram-status` remains useful after noisy provider or handler failures without hiding that truncation happened.
+
 ## 0.13.1: Rendering, Typing, And Continue Queue Hotfix
 
 - `[Rendering]` Fixed Telegram HTML rendering for Markdown bold/italic spans that cross soft line breaks, so assistant replies like `**first line\nsecond line**` render as bold text instead of showing raw asterisks. Added a regression for the guest-mode-style multiline bold reply shape.
@@ -40,7 +46,7 @@
 - `[Compaction Safety]` Telegram `/compact` now opens an inline confirmation dialog before manual compaction starts, protecting the operator from accidental taps near `/start`. The dialog follows the dedicated UI style guide: a bold text-only question with emoji only on the explicit `Yes, compact` and `No` buttons. Confirming edits the dialog directly to `Compaction started.` instead of showing a separate `Compaction confirmed.` step.
 - `[Docs]` Added `docs/ui-style.md` as the focused style guide for inline buttons, toggles, tabs, option lists, cards, and dialogs.
 - `[Docs]` Restructured `docs/architecture.md` into a clearer architectural map with runtime topology, domain ownership, core flows, extension surfaces, and operational behavior while pushing detailed UI/callback rules toward focused standards.
-- `[Breaking API]` Bumped package version to `0.12.0` and renamed the public implementation domains to `lib/sections.ts`, `lib/updates.ts`, `lib/inbound.ts`, and `lib/outbound.ts`. Package exports now expose only the stable public API domains (`/sections`, `/updates`, `/inbound`, `/outbound`, `/voice`, `/keyboard`) and no longer expose the compatibility `./lib/*.ts` wildcard.
+- `[Breaking API]` Renamed the public implementation domains to `lib/sections.ts`, `lib/updates.ts`, `lib/inbound.ts`, and `lib/outbound.ts`. Package exports now expose only the stable public API domains (`/sections`, `/updates`, `/inbound`, `/outbound`, `/voice`, `/keyboard`) and no longer expose the compatibility `./lib/*.ts` wildcard.
 - `[Architecture]` Folded the public update-handler interop surface into `updates` and renamed the internal long-poll loop module back to `polling`, giving the pair concise one-word domains: `updates` for update contracts/classification/handler registry and `polling` for the `getUpdates` runtime. Entrypoint extraction now lives in `bindings`, a concrete pi-facing command/tool/lifecycle wiring boundary rather than a new product domain.
 - `[Tests]` Added an architecture invariant and package self-import regressions that pin the `0.12.0` package exports to stable `/api` membranes with exact runtime export shapes and prevent accidental restoration of the removed `./lib/*.ts` wildcard.
 - `[Docs]` Added `docs/public-api.md` as the public API map for commands, config, assistant markup, extension APIs, callback ownership, and public/internal stability boundaries.
@@ -180,7 +186,7 @@
 
 ## 0.9.6: Runtime Adapter Positioning
 
-- `[Package]` Bumped package metadata to `0.9.6` and repositioned the package description from "Better Telegram DM bridge extension for π" to "Telegram runtime adapter for π". Impact: package metadata now reflects the runtime adapter/operator-console role rather than a narrow pipe metaphor.
+- `[Package]` Repositioned the package description from "Better Telegram DM bridge extension for π" to "Telegram runtime adapter for π". Impact: package metadata now reflects the runtime adapter/operator-console role rather than a narrow pipe metaphor.
 - `[Telegram API]` Introduced `TELEGRAM_API_BASE` for the Bot API endpoint and documented native HTTP/HTTPS proxy operation through `HTTP_PROXY`, `HTTPS_PROXY`, `NO_PROXY`, and explicit `NODE_USE_ENV_PROXY=1` / `--use-env-proxy` enablement. Impact: users behind corporate proxies, local HTTP tunnels, or restricted networks get a zero-runtime-dependency proxy path without replacing native `fetch`; SOCKS5 remains outside the zero-dependency core.
 - `[Dependencies]` Refreshed the lockfile transitive dependency set so `npm audit` clears current `fast-uri` and `fast-xml-builder` advisories inherited through development peer installs. Impact: the full `npm run validate` pipeline passes without changing runtime dependencies.
 - `[README]` Restructured the user entrypoint around install → connect → use → core features → docs, then consolidated examples, terminology, proxy setup, `PI_CODING_AGENT_DIR`, and other environment-only configuration around the runtime-adapter/operator-console model. Impact: first-time users get a clearer path from installation to operation, while vivid examples and non-UI runtime knobs stay discoverable.
@@ -201,13 +207,11 @@
 - `[Telegram Temp Dir]` Default Telegram API temp files now respect `PI_CODING_AGENT_DIR`, falling back to `~/.pi/agent` when the env var is unset. Impact: sandboxed or relocated agent dirs no longer force Telegram downloads through the default home-directory path.
 - `[Command Templates]` Updated the local Command Template Standard: command-template nodes now document `mode`, `label`, `delay`, `repeat`, parallel fanout semantics, zero-based repeat placeholders, padding, and limited arithmetic expressions such as `{_(index+1)}`. Impact: inbound/outbound Telegram handler docs and helpers share the current portable automation contract without depending on another extension's documentation.
 - `[Queue Menu]` Empty queue refresh clicks now rotate through compact alternate empty-state headings while preserving the default first-open `⌛ Queue is empty.` state, and the Refresh button now stays directly under Back for both empty and populated queue lists. Impact: manual queue polling feels alive and the primary refresh control stays in a stable location without changing queue semantics.
-- `[Package]` Bumped package metadata to `0.9.4` and kept the lockfile in sync.
 
 ## 0.9.3: External Handlers Rename
 
 - `[External Handlers]` Renamed the external update handlers domain to `external-handlers` across source, tests, and docs. Impact: the interop domain now has a cleaner name aligned with inbound/outbound handler naming.
 - `[Breaking]` Removed the old `external-update-handlers` module/doc path and old exported update/interceptor aliases. Impact: layered extensions should import from `@llblab/pi-telegram/lib/external-handlers.ts` and use the `TelegramExternalHandler*` names.
-- `[Package]` Bumped package metadata to `0.9.3` and kept the lockfile in sync.
 
 ## 0.9.2: External Update Interceptors
 
@@ -215,7 +219,6 @@
 - `[External Update Interceptors]` Validated the full v1 registry shape (`version`, `add`, and `dispatch`) before reusing a pre-existing global registry and documented the zero-coupling bootstrap contract. Impact: install-order interop stays safe even when another extension initializes the registry first.
 - `[Queue Menu]` Non-empty queue lists now keep the `🌀 Refresh` row below queued items, matching the empty-queue surface. Impact: users can manually refresh the queue screen while waiting for changes without navigating away.
 - `[Security]` Refreshed the lockfile to resolve the transitive `basic-ftp` audit advisory. Impact: release validation returns to a clean npm audit state.
-- `[Package]` Bumped package metadata to `0.9.2` and kept the lockfile in sync.
 
 ## 0.9.1: Model Detail Hotfix
 
@@ -224,7 +227,6 @@
 - `[Proactive Push]` Removed the unused proactive reply-target store and always sends proactive local-result pushes without `reply_to_message_id`. Impact: the runtime no longer carries dead state for a target-capture behavior that does not exist yet.
 - `[Queue Reactions]` Added `🔥` as a priority reaction and `🗑` as a queue-removal reaction. Impact: the intuitive fire/removal gestures now work alongside the existing reaction controls.
 - `[Docs]` Updated the status-bar example to match the compact active/queued display.
-- `[Package]` Bumped package metadata to `0.9.1` and kept the lockfile in sync.
 
 ## 0.9.0: Hidden Settings And Proactive Push
 
@@ -240,7 +242,6 @@
 - `[Lock Safety]` Active Telegram turns now re-check singleton ownership before preview flushes and final agent-end delivery. Impact: an old π instance stays silent after another instance takes the Telegram bridge lock, even if the old instance finishes a long-running prompt later.
 - `[Inbound Handlers]` The first step of an inbound composition now receives the full configured handler timeout before elapsed-time accounting starts on later steps. Impact: composition timeout behavior is deterministic and avoids one-millisecond test/runtime drift at pipeline start.
 - `[Menu UI]` Model and Thinking submenu headers now include their matching command icons (`🤖` and `🧠`). Impact: submenu headings match the Queue menu's icon-led style.
-- `[Package]` Bumped package metadata to `0.8.2` and kept the lockfile in sync.
 
 ## 0.8.1: Outbound Voice Translation Hotfix
 
@@ -250,7 +251,6 @@
 - `[Queue Priority]` Priority reactions now preserve the exact normalized promotion emoji and render it in both queue-menu rows and the π status-bar queued preview. Reaction metadata is grouped into semantic id ranges (`10..13` for priority, `20..23` for removal). Impact: `👍`, `⚡`, `❤️`, and `🕊️` keep the same priority semantics while making the user's chosen reaction visible across Telegram and TUI surfaces.
 - `[Configuration Docs]` Documented the configuration philosophy that rich visual/TUI setup stays minimal for now while agents can read README/docs and update `telegram.json` for advanced workflows. Impact: configuration guidance matches the extension's agent-assisted operator model without adding premature TUI surfaces.
 - `[Outbound Docs]` Tightened voice-handler critical-step wording around transform → TTS → conversion pipelines and handler-level fallbacks. Impact: docs now match translated voice pipelines without implying provider-specific TTS fallbacks.
-- `[Package]` Bumped package metadata to `0.8.1` and kept the lockfile in sync.
 - `[Command Template Docs]` Updated `docs/command-templates.md` to the current portable standard. Impact: the documented standard now includes retry, fail-open composition, critical-step abort semantics, and the 30s default timeout without requiring cross-extension references.
 - `[Lock Docs]` Synchronized `docs/locks.md` bit-for-bit with the extension-neutral Locks Standard shared by `pi-wakeup`. Impact: singleton ownership documentation no longer carries project-specific examples that prevent exact reuse across extensions.
 
@@ -264,20 +264,17 @@
 - `[Attachment Handlers]` `attachmentHandlers` is now deprecated but remains supported as a compatibility alias appended after `inboundHandlers`. Impact: existing voice/file preprocessing configs keep working while new configs can move to the unified inbound bus.
 - `[Outbound Handlers]` Added `outboundHandlers` support for `type: "text"`; final text/Markdown replies can be transformed before Telegram rendering and delivery. Impact: translation-back or other outbound text normalization can be configured without hard-coded providers.
 - `[Outbound Text Preview]` Finalized rich preview messages now pass through outbound `type: "text"` handlers before Telegram edit/delivery, with expanded README/docs examples for machine translation, final text rewrites, composed translated voice-over, and inline-button compatibility. Impact: outbound text transforms apply even when the final answer reuses an existing preview instead of falling back to a separate send path, while inline buttons remain attached and visible labels are transformed without changing callback prompts.
-- `[Package]` Bumped package metadata to `0.8.0` through npm and kept the lockfile in sync.
 
 ## 0.7.2: Split Text Coalescing Hotfix
 
 - `[Text Coalescing]` Telegram text messages that look like automatic splits of one near-limit human message are now short-debounced and forwarded to π as one prompt, using a conservative 3600-character near-limit threshold. Commands, bot messages, media groups, captions, non-contiguous messages, and normal short follow-ups bypass coalescing. Impact: long pasted logs/prompts are less likely to arrive as separate π turns when Telegram chunks them.
 - `[Runtime Tests]` The media-group runtime regression now waits for the real debounce instead of mixing fake timers with the polling loop, and the reaction-priority runtime test flushes pending microtasks before ending the active turn. Impact: CI should stop failing on timing-only races around delayed dispatch and queued reaction mutations.
 - `[Callback Namespaces]` Current status-screen navigation callbacks now use the canonical `menu:` namespace (`menu:model`, `menu:thinking`, `menu:queue`). `status:` remains reserved as an owned legacy prefix but is no longer emitted by current UI. Impact: new inline menu callbacks align with the unified app-menu model while old `status:` payloads still cannot leak to external fallback handlers.
-- `[Package]` Bumped package metadata to `0.7.2` through npm and kept the lockfile in sync.
 
 ## 0.7.1: Layered Callback Interop
 
 - `[Callback Interop]` Unknown Telegram inline-button callback data that does not belong to pi-telegram-owned prefixes (`tgbtn:`, `menu:`, `model:`, `thinking:`, `status:`, `queue:`) is now forwarded to π as `[callback] <data>` after assistant-button, queue-menu, and app-menu handlers decline it. `docs/callback-namespaces.md` defines the shared callback namespace standard for layered extensions. Impact: layered π extensions can namespace and handle their own Telegram inline buttons without polling the same bot or forking pi-telegram.
 - `[Prompt Templates]` Prompt-template aliases stay visible only inside `/start` and are no longer registered in the Telegram bot command menu. Impact: reusable π workflows remain discoverable without making Telegram's global command menu noisy.
-- `[Package]` Bumped package metadata to `0.7.1` through npm and kept the lockfile in sync.
 
 ## 0.7.0: Unified App Menu & Command Template Hardening
 
