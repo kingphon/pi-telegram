@@ -227,12 +227,7 @@ export default function (pi: Pi.ExtensionAPI) {
       sendMessageDraft,
       sendRichMessageDraft,
     }),
-    sendMessage,
-    editMessageText: editTelegramMessageText,
     sendMarkdownReply,
-    editMarkdownMessage: Preview.createTelegramNativeMarkdownMessageEditor({
-      editMessageText: editTelegramMessageText,
-    }),
     recordRuntimeEvent,
     ...replyTransport,
   });

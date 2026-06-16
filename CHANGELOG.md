@@ -1,6 +1,10 @@
 # Changelog
 
-## Unreleased
+## 0.17.3: Native Draft Preview Hotfix
+
+- `[Rich Markdown]` Normalize multiline display-math blocks written as `$$` / content / `$$` into Telegram-supported `math` code fences before native Rich Markdown delivery, while preserving literal delimiters inside code fences. Impact: assistant replies following the Telegram prompt guidance for block formulas no longer risk making the whole Rich Markdown message render as raw Markdown.
+- `[Preview]` Removed assistant plain-message preview fallback paths; failed native draft frames are recorded and skipped because partial Markdown can be temporarily invalid while the final answer remains valid. Draft delivery now sends only structurally closed Markdown prefixes, holding back unclosed inline spans, links, fenced code, comments, and display-math blocks until a safe boundary exists. Impact: assistant previews stay on Telegram's native Rich Draft API and no longer create raw-Markdown fallback bubbles.
+- `[Validation]` Live Telegram smoke-tested native draft/final Rich Markdown delivery with sections, lists, code fences, links, `$$` display math, and inline buttons after reload. Impact: the `0.17.3` hotfix behavior is verified in the target Telegram client path, not only by local tests.
 
 ## 0.17.2: Indented List Rich Markdown Hotfix
 

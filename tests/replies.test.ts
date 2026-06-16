@@ -398,6 +398,48 @@ test("Native Markdown delivery preserves top-level list markers", () => {
   );
 });
 
+test("Native Markdown delivery converts multiline display math to math fences", () => {
+  const markdown = [
+    "Block math:",
+    "",
+    "$$",
+    "\\int_0^1 x^2 dx = \\frac{1}{3}",
+    "$$",
+    "",
+    "```md",
+    "$$",
+    "literal fenced math delimiters",
+    "$$",
+    "```",
+  ].join("\n");
+  assert.equal(
+    normalizeTelegramNativeMarkdown(markdown),
+    [
+      "Block math:",
+      "",
+      "```math",
+      "\\int_0^1 x^2 dx = \\frac{1}{3}",
+      "```",
+      "",
+      "```md",
+      "$$",
+      "literal fenced math delimiters",
+      "$$",
+      "```",
+    ].join("\n"),
+  );
+});
+
+test("Native Markdown delivery ignores math delimiters inside fences when pairing", () => {
+  const markdown = [
+    "$$",
+    "```md",
+    "$$",
+    "```",
+  ].join("\n");
+  assert.equal(normalizeTelegramNativeMarkdown(markdown), markdown);
+});
+
 test("Native Markdown splitter keeps truncation-risk fixture intact", () => {
   const markdown = [
     "**HEAD**",

@@ -286,13 +286,46 @@ function normalizeTelegramNativeMarkdownLine(line: string): string {
   return result.replace(/\u0000(\d+)\u0000/g, (_match, index) => codeSpans[Number(index)] ?? "");
 }
 
+function hasClosingDisplayMathDelimiter(lines: readonly string[], startIndex: number): boolean {
+  let fence: { marker: "`" | "~"; length: number } | undefined;
+  for (let index = startIndex + 1; index < lines.length; index += 1) {
+    const line = lines[index] ?? "";
+    const fenceMatch = line.match(/^ {0,3}(`{3,}|~{3,})/);
+    if (!fence && line.trim() === "$$") return true;
+    if (!fence && fenceMatch) {
+      const markerText = fenceMatch[1] ?? "```";
+      fence = { marker: markerText[0] as "`" | "~", length: markerText.length };
+      continue;
+    }
+    if (
+      fence &&
+      new RegExp(`^ {0,3}${fence.marker}{${fence.length},}\\s*$`).test(line)
+    ) {
+      fence = undefined;
+    }
+  }
+  return false;
+}
+
 export function normalizeTelegramNativeMarkdown(markdown: string): string {
   const lines = markdown.replace(/\r\n/g, "\n").split("\n");
   let fence: { marker: "`" | "~"; length: number } | undefined;
+  let displayMath = false;
   return lines
-    .map((line) => {
+    .map((line, index) => {
       const fenceMatch = line.match(/^ {0,3}(`{3,}|~{3,})/);
       const inFence = fence !== undefined;
+      if (!inFence && line.trim() === "$$") {
+        if (displayMath) {
+          displayMath = false;
+          return "```";
+        }
+        if (hasClosingDisplayMathDelimiter(lines, index)) {
+          displayMath = true;
+          return "```math";
+        }
+      }
+      if (displayMath) return line;
       if (!inFence && fenceMatch) {
         const markerText = fenceMatch[1] ?? "```";
         fence = { marker: markerText[0] as "`" | "~", length: markerText.length };

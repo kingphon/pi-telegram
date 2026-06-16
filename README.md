@@ -134,7 +134,7 @@ The menu is the primary way to inspect and mutate the queue. Reactions are an ex
 
 ### Streaming and native Rich Markdown
 
-Assistant Markdown is sent to Telegram as native Rich Markdown. Streaming previews use Telegram rich-message drafts when available, and final replies persist the same Markdown through `sendRichMessage`. The bridge still strips top-level hidden action comments before delivery and splits only when Telegram transport limits require it.
+Assistant Markdown is sent to Telegram as native Rich Markdown. Streaming previews use Telegram rich-message drafts when a structurally closed Markdown prefix is available, and final replies persist the complete Markdown through `sendRichMessage`. The bridge still strips top-level hidden action comments before delivery and splits only when Telegram transport limits require it.
 
 Telegram HTML rendering remains the default for bridge-owned UI surfaces such as commands, menus, status messages, queue controls, and extension sections, where explicit markup is clearer and easier to maintain. Native Rich Markdown is reserved for model-authored Markdown replies and guest replies that naturally arrive as Markdown.
 

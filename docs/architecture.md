@@ -58,7 +58,7 @@ The repository uses a **Flat Domain DAG**:
 - `model` / `menu-model` / `menu-thinking` / `menu-status` / `menu-queue` / `menu-settings` / `menu` / `commands`: model identity, thinking levels, scoped model handling, menu render/callback behavior, slash commands, bot commands, and interactive controls.
 - `sections`: Telegram menu-section registry, opaque section callback tokens, render/callback dispatch, safe section ports, and diagnostics.
 - `keyboard`: shared inline-keyboard reply-markup shape only; feature domains own labels, callback data, and behavior.
-- `preview` / `replies` / `rendering`: throttled native Rich Markdown draft delivery and fallback preview transport, native final reply delivery, reply parameters, transport-limit chunking, and remaining Telegram HTML rendering for bridge-owned UI/compatibility surfaces.
+- `preview` / `replies` / `rendering`: throttled native Rich Markdown draft delivery, native final reply delivery, reply parameters, transport-limit chunking, and remaining Telegram HTML rendering for bridge-owned UI/compatibility surfaces.
 - `outbound-markup`: top-level assistant action comment parsing, attribute parsing, voice reply planning, and preview/delivery stripping.
 - `outbound`: outbound text transformations, voice/button artifact delivery, and generated callback actions.
 - `outbound-attachments`: `telegram_attach`, queued outbound files, stat/limit checks, and photo/document delivery classification.
@@ -191,7 +191,7 @@ During active Telegram-owned turns, assistant message start/update hooks re-arm 
 
 ### Rendering And Delivery
 
-Assistant replies use Telegram-native Rich Markdown. Final Markdown is sent directly as `InputRichMessage.markdown` through `sendRichMessage`, streaming previews use `sendRichMessageDraft` when draft delivery is available, and editable fallback previews are finalized through `editMessageText.rich_message`. Guest replies also use native Rich Markdown through `InputRichMessageContent` in `answerGuestQuery` results. The bridge still strips top-level assistant action comments before delivery and may split output only for Telegram transport limits.
+Assistant replies use Telegram-native Rich Markdown. Final Markdown is sent directly as `InputRichMessage.markdown` through `sendRichMessage`, and streaming previews use `sendRichMessageDraft` when draft delivery succeeds. Guest replies also use native Rich Markdown through `InputRichMessageContent` in `answerGuestQuery` results. The bridge still strips top-level assistant action comments before delivery and may split output only for Telegram transport limits.
 
 Assistant delivery guarantees:
 
@@ -199,7 +199,7 @@ Assistant delivery guarantees:
 - Before native Rich Markdown delivery, the bridge normalizes known Bot-API-fragile source forms without changing visible meaning, including space-after-marker blockquotes and dollar-prefixed ticker atoms that Telegram may otherwise treat as unterminated math.
 - Quoted rich replies use Telegram `rich_message` blocks as the prompt-context source when available, so `[reply]` context receives rendered plain text instead of raw `InputRichMessage.markdown` fallback text.
 - Long native Markdown replies are split only at Telegram Rich Message transport limits.
-- Streaming previews pass assistant Markdown through to `sendRichMessageDraft` with ownership checks, voice suppression, serialized flushes, and an editable plain-message fallback when draft delivery is unavailable.
+- Streaming previews pass structurally closed assistant Markdown prefixes through to `sendRichMessageDraft` with ownership checks, voice suppression, and serialized flushes. Unclosed inline spans, links, fenced code, comments, and display-math blocks are held back until a safe boundary exists. Draft failures are recorded and the failing frame is skipped instead of degrading to raw plain-message previews, because partial Markdown can be invalid while the final message remains valid.
 - Preview flushes are serialized so older edits cannot race newer drafts; final delivery waits for active draft flushes and does not perform a post-final draft-clear call.
 
 UI/compat rendering guarantees:

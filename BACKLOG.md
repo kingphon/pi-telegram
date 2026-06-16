@@ -1,5 +1,10 @@
 # Project Backlog
 
+- [ ] Track evidence-backed Telegram Rich Markdown normalization follow-ups.
+  - Done when: newly observed Telegram parser-breaking sequences are captured from live/client evidence or minimized fixtures.
+  - Done when: each confirmed sequence has a conservative normalization or safe-degradation rule covered by tests.
+  - Done when: unconfirmed speculative rewrites remain out of the delivery path.
+
 - [ ] Track a public Pi session-replacement hook before adding Telegram `/new`.
   - [ ] Wait for a safe public Pi API.
     - Done when: Pi exposes an API that invokes the same session-replacement path as terminal `/new`.
