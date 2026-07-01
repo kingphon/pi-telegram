@@ -928,7 +928,10 @@ export async function fetchTelegramBotIdentity(
   botToken: string,
   fetchImpl: typeof fetch = fetch,
 ): Promise<TelegramBotIdentityResponse> {
-  const response = await fetchImpl(`${TELEGRAM_API_BASE}/bot${botToken}/getMe`);
+  const url = `${TELEGRAM_API_BASE}/bot${botToken}/getMe`;
+  const response = await callTelegramTransportRequest((family) =>
+    fetchImpl === fetch ? telegramFetch(url, {}, family) : fetchImpl(url),
+  );
   return response.json() as Promise<TelegramBotIdentityResponse>;
 }
 

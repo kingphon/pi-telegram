@@ -135,7 +135,14 @@ export async function runTelegramSetup(
     ...deps.config,
     botToken: token.trim(),
   };
-  const data = await deps.getMe(nextConfig.botToken ?? "");
+  let data: Awaited<ReturnType<TelegramSetupDeps["getMe"]>>;
+  try {
+    data = await deps.getMe(nextConfig.botToken ?? "");
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    deps.notify(`Telegram API check failed: ${message}`, "error");
+    return undefined;
+  }
   if (!data.ok || !data.result) {
     deps.notify(data.description || "Invalid Telegram bot token", "error");
     return undefined;

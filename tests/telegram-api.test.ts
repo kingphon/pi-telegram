@@ -253,6 +253,36 @@ test("Telegram API helper fetches bot identity through getMe", async () => {
   assert.equal(response.result?.username, "demo");
 });
 
+test("Telegram API helper fetches bot identity through IPv4 fallback", async () => {
+  const familySeen: boolean[] = [];
+  const restoreEnv = setApiTestNetworkFamily("ipv4-fallback");
+  const restoreFetch = setApiTestFetch(async () => {
+    familySeen.push(false);
+    throw createSyntheticFetchFailure();
+  });
+  const restoreHttpsFetch = setTelegramApiHttpsFetchForTesting(
+    async (_input, _init, family) => {
+      familySeen.push(hasApiTestFamily(family));
+      return createApiJsonResponse({
+        id: 1,
+        is_bot: true,
+        first_name: "Demo",
+        username: "demo",
+      });
+    },
+  );
+  try {
+    const response = await fetchTelegramBotIdentity("123:abc");
+    assert.equal(response.ok, true);
+    assert.equal(response.result?.username, "demo");
+    assert.deepEqual(familySeen, [false, true]);
+  } finally {
+    restoreHttpsFetch();
+    restoreFetch();
+    restoreEnv();
+  }
+});
+
 test("Telegram temp cleanup removes only stale files", async () => {
   const tempDir = await mkdtemp(join(tmpdir(), "pi-telegram-cleanup-"));
   const oldFile = join(tempDir, "old.txt");

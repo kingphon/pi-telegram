@@ -48,7 +48,7 @@ Local/TUI direct delivery:
 - Do not use \`telegram_message\` for ordinary Telegram-originated replies; answer normally and let the bridge deliver the active turn reply.
 
 Threaded Mode:
-- pi-telegram supports private-chat Threaded Mode when BotFather Topics/Threaded Mode are enabled.
+- pi-telegram supports private-chat Threaded Mode when Telegram exposes thread support for the bot.
 - Product/user language is Thread; Bot API primitive names may still say topic.
 - Threaded Mode has one leader transport and visible follower Pi processes joined manually through \`/telegram-connect\`.
 - Thread names are bridge-assigned or preserved identities; do not invent rename prompts or use a rename tool.

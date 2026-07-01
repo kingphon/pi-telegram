@@ -109,7 +109,7 @@ test("Setup runner reports invalid tokens without persisting or starting polling
   assert.deepEqual(calls, ["error:Unauthorized"]);
 });
 
-test("Setup prompt runtime guards concurrency and always finishes after errors", async () => {
+test("Setup prompt runtime reports token check errors and always finishes", async () => {
   const calls: string[] = [];
   let locked = false;
   const runtime = createTelegramSetupPromptRuntime({
@@ -140,21 +140,18 @@ test("Setup prompt runtime guards concurrency and always finishes after errors",
       calls.push(`${category}:${(error as Error).message}`),
   });
 
-  await assert.rejects(
-    runtime({
-      hasUI: true,
-      ui: {
-        input: async () => "token",
-        editor: async () => "token",
-        notify: () => {},
-      },
-    }),
-    /network down/,
-  );
+  await runtime({
+    hasUI: true,
+    ui: {
+      input: async () => "token",
+      editor: async () => "token",
+      notify: (message) => calls.push(`notify:${message}`),
+    },
+  });
 
   assert.deepEqual(calls, [
     "guard-start",
-    "setup:network down",
+    "notify:Telegram API check failed: network down",
     "guard-finish",
   ]);
   assert.equal(locked, false);

@@ -15,7 +15,7 @@ This repository is an actively maintained fork of [`badlogic/pi-telegram`](https
 - **Mobile supervision**: continue a live Pi session from Telegram without turning Telegram into a fake terminal.
 - **Telegram-native controls**: menus, settings, queue controls, native active status, Rich Markdown replies, drafts, buttons, voice, files, and artifacts.
 - **Safe runtime mapping**: Telegram turns map into Pi lifecycle, queueing, model switching, compaction, previews, final replies, and ownership rules.
-- **Optional Threaded Mode**: one leader and visible follower Pi processes can share one bot through named Telegram Threads.
+- **Optional Threaded Mode**: one leader and visible follower Pi processes can share one bot through named Telegram threads.
 - **Extension platform**: companion extensions can add Telegram-native commands, sections, status rows, update handlers, handlers, and voice providers without owning polling.
 
 Use this README for the product shape. Follow the docs for exact contracts.
@@ -59,7 +59,7 @@ Paste your bot token when prompted. If a bot token is already saved in `~/.pi/ag
 /telegram-connect
 ```
 
-The adapter is session-local: only one Pi instance polls Telegram at a time. In classic mode, `/telegram-connect` records external control/polling ownership in `~/.pi/agent/locks.json`. When BotFather Threaded Mode is available, `/telegram-connect` uses the local Telegram organism automatically: the first live instance becomes leader, later live instances register as followers instead of taking over while the leader heartbeat is healthy. Local queue and reply state stay per Pi instance, so an instance that loses Telegram control still finishes work it already accepted.
+The adapter is session-local: only one Pi instance polls Telegram at a time. In classic mode, `/telegram-connect` records external control/polling ownership in `~/.pi/agent/locks.json`. When Telegram private-chat Threaded Mode is available for the bot, `/telegram-connect` uses the local Telegram organism automatically: the first live instance becomes leader, later live instances register as followers instead of taking over while the leader heartbeat is healthy. Local queue and reply state stay per Pi instance, so an instance that loses Telegram control still finishes work it already accepted.
 
 ### 4. Pair your Telegram account
 
@@ -130,11 +130,11 @@ Send files or images directly to the bot. Inbound downloads are saved under `<ag
 
 If you ask Pi for a generated file, Pi can call `telegram_attach`: during a Telegram-originated turn the adapter sends it with the next Telegram reply, and during local/TUI work it sends directly to the paired/default chat, a registered follower's assigned thread, or explicit `chat_id` plus optional `thread_id`. Local work can also use `telegram_message` when you explicitly ask the agent to push a Markdown text message to Telegram; embedded `telegram_button` comments are parsed and attached to that message. Direct local/TUI delivery requires the current Pi instance to own `/telegram-connect`, or to be registered with an explicitly enabled multi-instance bus so it can route through the leader; if neither is true, take over or enable/register with the bus before sending. Outbound attachments default to a 50 MiB limit. Environment variables for both limits are listed in [Environment-only configuration](#environment-only-configuration).
 
-### BotFather Threads and multi-instance bus
+### Telegram Threaded Mode and multi-instance bus
 
-BotFather Threaded Mode is the switch. Classic single-DM polling is the base mode. When Telegram reports private-chat Threads are available, the adapter enables the local leader/follower bus automatically; when Threads are unavailable or later disabled, it uses classic single-DM polling as the ordinary private-bot mode.
+Telegram private-chat Threaded Mode is the switch. Classic single-DM polling is the base mode. When Telegram reports private-chat threads are available for the bot, the adapter enables the local leader/follower bus automatically; when threads are unavailable or later disabled, it uses classic single-DM polling as the ordinary private-bot mode.
 
-Only the leader calls `getUpdates`; followers authenticate to the local bus and route allowlisted, target-scoped Telegram work through the leader. When BotFather Threads are available, they become the UI targets:
+Only the leader calls `getUpdates`; followers authenticate to the local bus and route allowlisted, target-scoped Telegram work through the leader. When private-chat threads are available, they become the UI targets:
 
 - The leader owns one thread;
 - Each explicitly connected follower gets one visible thread;
@@ -143,7 +143,7 @@ Only the leader calls `getUpdates`; followers authenticate to the local bus and 
 - Unknown owner-created threads preserve the original prompt and offer a target-thread chooser instead of spawning work invisibly;
 - Stale follower tabs receive compact lifecycle notices before cleanup when the leader can prove ownership.
 
-Threaded input is still authorized by `allowedUserId`. There is no separate public `telegram.json` switch for the bus: Telegram capability detection is the runtime source of truth. Native Windows Threaded Mode smoke remains tracked in `BACKLOG.md`; the intended transport is the same local bus over Windows named pipes instead of Unix sockets.
+Thread input is still authorized by `allowedUserId`. There is no separate public `telegram.json` switch for the bus: Telegram capability detection is the runtime source of truth. Native Windows Threaded Mode smoke remains tracked in `BACKLOG.md`; the intended transport is the same local bus over Windows named pipes instead of Unix sockets.
 
 ## Core features
 
