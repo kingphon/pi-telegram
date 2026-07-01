@@ -34,6 +34,7 @@ import {
   createTelegramPromptEnqueueController,
   createTelegramQueueDispatchController,
   createTelegramQueueDispatchRuntime,
+  createTelegramQueueDispatchWatchdogRuntime,
   createTelegramQueueMutationController,
   createTelegramQueueStore,
   createTelegramSessionLifecycleHooks,
@@ -2804,6 +2805,33 @@ test("Deferred queue dispatch uses only the bound session context", () => {
   callbacks[1]?.();
   assert.deepEqual(clearedTimers, [1]);
   assert.deepEqual(events, ["dispatch:new"]);
+});
+
+test("Queue dispatch watchdog retries dispatch for queued work", () => {
+  const events: string[] = [];
+  let hasQueuedItems = false;
+  let intervalCallback: (() => void) | undefined;
+  const watchdog = createTelegramQueueDispatchWatchdogRuntime<{ id: string }>({
+    hasQueuedItems: () => hasQueuedItems,
+    dispatchNextQueuedTelegramTurn: (ctx) => {
+      events.push(`dispatch:${ctx.id}`);
+    },
+    setInterval: (callback) => {
+      intervalCallback = callback;
+      return 1 as unknown as ReturnType<typeof setInterval>;
+    },
+    clearInterval: () => {
+      events.push("clear");
+    },
+  });
+  watchdog.start({ id: "ctx" });
+  assert.deepEqual(events, []);
+  hasQueuedItems = true;
+  watchdog.poke();
+  intervalCallback?.();
+  assert.deepEqual(events, ["dispatch:ctx", "dispatch:ctx"]);
+  watchdog.stop();
+  assert.deepEqual(events, ["dispatch:ctx", "dispatch:ctx", "clear"]);
 });
 
 test("Dispatch controller skips inactive stale contexts before readiness checks", () => {

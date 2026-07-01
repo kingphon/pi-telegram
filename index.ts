@@ -454,6 +454,12 @@ export default function (pi: Pi.ExtensionAPI) {
       ...promptDispatchRuntime,
       sendUserMessage,
     }).dispatchNext;
+  const queueDispatchWatchdogRuntime =
+    Queue.createTelegramQueueDispatchWatchdogRuntime({
+      hasQueuedItems: telegramQueueStore.hasQueuedItems,
+      dispatchNextQueuedTelegramTurn,
+      recordRuntimeEvent,
+    });
   const nativeMarkdownDraftSender =
     TelegramApi.createTelegramNativeMarkdownDraftSender({
       sendMessageDraft,
@@ -1168,8 +1174,10 @@ export default function (pi: Pi.ExtensionAPI) {
       async onSessionStart(event, ctx) {
         await lockedPollingRuntime.onSessionStart(event, ctx);
         telegramThreadCapabilityMonitor.start(ctx);
+        queueDispatchWatchdogRuntime.start(ctx);
       },
       async onSessionShutdown() {
+        queueDispatchWatchdogRuntime.stop();
         telegramThreadCapabilityMonitor.stop();
       },
     },

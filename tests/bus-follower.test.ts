@@ -398,6 +398,57 @@ test("Bus follower registration state tracks successful registration and stop", 
   }
 });
 
+test("Bus follower registration runtime retries while leader endpoint is starting", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "pi-telegram-bus-follower-retry-"));
+  const socketPath = join(dir, "bus.sock");
+  const registry = createTelegramBusFollowerRegistry();
+  const state = createTelegramBusFollowerRegistrationState();
+  const events: Array<Record<string, unknown> | undefined> = [];
+  const server = createTelegramBusLocalServer({
+    socketPath,
+    handleEnvelope: createTelegramBusLeaderEnvelopeHandler({
+      followerRegistry: registry,
+      provisionFollowerTarget() {
+        return { chatId: -1007, threadId: 42 };
+      },
+    }),
+  });
+  const follower = createTelegramBusFollowerRegistrationRuntime({
+    instanceId: "inst-a",
+    createRequestId: () => "inst-a:1",
+    getNowMs: () => 1000,
+    registrationState: state,
+    registrationTimeoutMs: 50,
+    registrationRetryAttempts: 10,
+    registrationRetryDelayMs: 10,
+    recordRuntimeEvent(_category, _error, details) {
+      events.push(details);
+    },
+  });
+  try {
+    setTimeout(() => {
+      void server.start();
+    }, 25).unref?.();
+    assert.equal(
+      await follower.registerWithLeader(
+        { cwd: "/repo" },
+        { busSocketPath: socketPath },
+      ),
+      true,
+    );
+    assert.equal(state.isRegistered(), true);
+    assert.deepEqual(state.getTarget(), { chatId: -1007, threadId: 42 });
+    assert.equal(
+      events.some((event) => event?.phase === "follower-register-retry"),
+      true,
+    );
+  } finally {
+    follower.stop();
+    await server.stop();
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test("Bus follower registration runtime waits for slow target provisioning", async () => {
   const dir = mkdtempSync(
     join(tmpdir(), "pi-telegram-bus-follower-slow-register-"),

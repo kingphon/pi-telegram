@@ -1920,6 +1920,76 @@ export function createTelegramDeferredQueueDispatchRuntime<TContext = unknown>(
   };
 }
 
+// --- Dispatch Watchdog Runtime ---
+
+export interface TelegramQueueDispatchWatchdogRuntime<TContext = unknown> {
+  start: (ctx: TContext) => void;
+  stop: () => void;
+  poke: () => void;
+}
+
+export interface TelegramQueueDispatchWatchdogRuntimeDeps<
+  TContext = unknown,
+> extends TelegramRuntimeEventRecorderPort {
+  hasQueuedItems: () => boolean;
+  dispatchNextQueuedTelegramTurn: (ctx: TContext) => void;
+  intervalMs?: number;
+  setInterval?: (
+    callback: () => void,
+    ms: number,
+  ) => ReturnType<typeof setInterval>;
+  clearInterval?: (timer: ReturnType<typeof setInterval>) => void;
+}
+
+export function createTelegramQueueDispatchWatchdogRuntime<
+  TContext = unknown,
+>(
+  deps: TelegramQueueDispatchWatchdogRuntimeDeps<TContext>,
+): TelegramQueueDispatchWatchdogRuntime<TContext> {
+  const intervalMs = deps.intervalMs ?? 1000;
+  const setIntervalFn: NonNullable<
+    TelegramQueueDispatchWatchdogRuntimeDeps<TContext>["setInterval"]
+  > = deps.setInterval ?? ((callback, ms) => setInterval(callback, ms));
+  const clearIntervalFn: NonNullable<
+    TelegramQueueDispatchWatchdogRuntimeDeps<TContext>["clearInterval"]
+  > = deps.clearInterval ?? ((timer) => clearInterval(timer));
+  let ctx: TContext | undefined;
+  let interval: ReturnType<typeof setInterval> | undefined;
+  let dispatchInFlight = false;
+  const tick = (): void => {
+    if (ctx === undefined || dispatchInFlight || !deps.hasQueuedItems()) return;
+    dispatchInFlight = true;
+    try {
+      deps.dispatchNextQueuedTelegramTurn(ctx);
+    } catch (error) {
+      deps.recordRuntimeEvent?.("dispatch", error, {
+        phase: "queue-watchdog",
+      });
+    } finally {
+      dispatchInFlight = false;
+    }
+  };
+  const stop = (): void => {
+    ctx = undefined;
+    if (!interval) return;
+    clearIntervalFn(interval);
+    interval = undefined;
+  };
+  return {
+    start: (nextCtx) => {
+      ctx = nextCtx;
+      if (!interval) {
+        const nextInterval = setIntervalFn(tick, intervalMs);
+        interval = nextInterval;
+        nextInterval.unref?.();
+      }
+      tick();
+    },
+    stop,
+    poke: tick,
+  };
+}
+
 // --- Dispatch Runtime ---
 
 export interface TelegramPromptDeliveryOptions {

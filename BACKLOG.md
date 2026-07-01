@@ -36,8 +36,11 @@ Open work:
 
 - [ ] Live smoke Threaded Mode on native Windows without WSL.
   - Scope: leader/follower `/telegram-connect`, follower heartbeat, forwarded Bot API calls, restore flows, lifecycle announcements, shutdown cleanup, and reconnect/reload behavior.
+  - Observed: a same-directory follower can see a live leader lock but fail registration with `connect ENOENT \\.\\pipe\\...`, leaving the follower disconnected during leader reload/hot activation timing.
+  - Observed: Windows/QEMU live polling/dispatch can lag until reload; inbound messages appear to increase the extension queue count, but the next queued item is not dispatched promptly.
   - Baseline: deterministic path tests run everywhere, and a Windows-only named-pipe roundtrip regression runs when the suite executes on `win32`. Live Windows smoke remains unavailable in this environment.
-- [ ] If Windows live smoke exposes pipe-specific behavior, add a minimized regression at the bus transport boundary before changing higher-level Threaded Mode logic.
+- [x] Add a minimized registration-boundary regression for transient leader endpoint startup races.
+- [x] Add a session-bound queue dispatch watchdog so queued Telegram work can recover if a one-shot wakeup/timer is missed.
 
 Done when: Threaded Mode leader/follower operation works on native Windows with the same safety guarantees as Unix-like systems, and unsupported transport assumptions are covered by tests/docs.
 

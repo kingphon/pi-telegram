@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+## 0.18.4: Windows Threaded Mode hotfix
+
+- `[Windows IPC]` Follower registration now retries transient local bus connection failures while the leader named pipe/socket is still coming online. Impact: a same-directory Windows follower is less likely to fail `/telegram-connect` with `connect ENOENT \\.\\pipe\\...` during leader reload or hot Threaded Mode activation.
+- `[Queue]` A session-bound queue dispatch watchdog now retries dispatch while Telegram work remains queued. Impact: if a platform drops the one-shot deferred dispatch wakeup, queued Telegram messages can resume without waiting for a manual `/reload`.
+
 ## 0.18.3: Threaded Mode live hotfix
 
 - `[Threaded Mode]` Inbound Telegram prompts now request an immediate dispatch and a session-bound deferred retry. Impact: hosts where Pi is not yet dispatch-ready at update handling time no longer need a later `/reload` or command to process the queued prompt.

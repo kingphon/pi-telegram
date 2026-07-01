@@ -22,6 +22,8 @@ import {
 
 export const TELEGRAM_BUS_FOLLOWER_PROMOTION_GRACE_MS = 2_500;
 export const TELEGRAM_FOLLOWER_SESSION_HANDOFF_TTL_MS = 30_000;
+export const TELEGRAM_BUS_FOLLOWER_REGISTRATION_RETRY_ATTEMPTS = 10;
+export const TELEGRAM_BUS_FOLLOWER_REGISTRATION_RETRY_DELAY_MS = 150;
 
 const TELEGRAM_FOLLOWER_SESSION_HANDOFF_KEY =
   "__piTelegramFollowerSessionHandoff";
@@ -150,6 +152,8 @@ export interface TelegramBusFollowerRegistrationRuntimeDeps<
   getPid?: () => number;
   timeoutMs?: number;
   registrationTimeoutMs?: number;
+  registrationRetryAttempts?: number;
+  registrationRetryDelayMs?: number;
   heartbeatMs?: number;
   recordRuntimeEvent?: (
     category: string,
@@ -362,6 +366,19 @@ function isTelegramStaleContextError(error: unknown): boolean {
     (error.message.includes("stale after session") ||
       error.message.includes("stale ctx"))
   );
+}
+
+function isRetryableTelegramBusRegistrationError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  const code = (error as NodeJS.ErrnoException).code;
+  return code === "ENOENT" || code === "ECONNREFUSED" || code === "EPIPE";
+}
+
+function delayTelegramBusFollowerRegistration(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    const timer = setTimeout(resolve, ms);
+    timer.unref?.();
+  });
 }
 
 export function createTelegramBusFollowerSessionReplacementSuspender(
@@ -588,6 +605,12 @@ export function createTelegramBusFollowerRegistrationRuntime<
   const heartbeatMs = deps.heartbeatMs ?? 1000;
   const registrationTimeoutMs =
     deps.registrationTimeoutMs ?? deps.timeoutMs ?? 30000;
+  const registrationRetryAttempts =
+    deps.registrationRetryAttempts ??
+    TELEGRAM_BUS_FOLLOWER_REGISTRATION_RETRY_ATTEMPTS;
+  const registrationRetryDelayMs =
+    deps.registrationRetryDelayMs ??
+    TELEGRAM_BUS_FOLLOWER_REGISTRATION_RETRY_DELAY_MS;
   let heartbeatInterval: ReturnType<typeof setInterval> | undefined;
   let activeLeaderSocketPath: string | undefined;
   let activeAuthSecret: string | undefined;
@@ -646,30 +669,54 @@ export function createTelegramBusFollowerRegistrationRuntime<
       await deps.startReceiving?.();
       activeAuthSecret = deps.getLeaderAuthSecret?.(leader);
       deps.setActiveAuthSecret?.(activeAuthSecret);
+      const createRegistrationEnvelope = (): Extract<
+        TelegramBusEnvelope,
+        { kind: "follower.register" }
+      > => ({
+        kind: "follower.register",
+        requestId: deps.createRequestId(),
+        auth: activeAuthSecret,
+        registration: {
+          instanceId: deps.instanceId,
+          profileKey:
+            deps.getProfileKey?.(ctx) ??
+            (ctx.cwd ? `cwd:${ctx.cwd}` : undefined),
+          threadName:
+            deps.getThreadName?.(ctx) ??
+            (ctx.cwd ? basename(ctx.cwd) : undefined),
+          cwd: ctx.cwd,
+          pid: getPid(),
+          busSocketPath: deps.followerBusSocketPath,
+          connectedAtMs: getNowMs(),
+        },
+      });
       let response: TelegramBusEnvelope | undefined;
       try {
-        response = await sendTelegramBusLocalEnvelope({
-          socketPath: leaderSocketPath,
-          timeoutMs: registrationTimeoutMs,
-          envelope: {
-            kind: "follower.register",
-            requestId: deps.createRequestId(),
-            auth: activeAuthSecret,
-            registration: {
-              instanceId: deps.instanceId,
-              profileKey:
-                deps.getProfileKey?.(ctx) ??
-                (ctx.cwd ? `cwd:${ctx.cwd}` : undefined),
-              threadName:
-                deps.getThreadName?.(ctx) ??
-                (ctx.cwd ? basename(ctx.cwd) : undefined),
-              cwd: ctx.cwd,
-              pid: getPid(),
-              busSocketPath: deps.followerBusSocketPath,
-              connectedAtMs: getNowMs(),
-            },
-          },
-        });
+        for (let attempt = 1; ; attempt += 1) {
+          try {
+            response = await sendTelegramBusLocalEnvelope({
+              socketPath: leaderSocketPath,
+              timeoutMs: registrationTimeoutMs,
+              envelope: createRegistrationEnvelope(),
+            });
+            break;
+          } catch (error) {
+            if (
+              attempt >= registrationRetryAttempts ||
+              !isRetryableTelegramBusRegistrationError(error)
+            ) {
+              throw error;
+            }
+            deps.recordRuntimeEvent?.("bus", error, {
+              phase: "follower-register-retry",
+              attempt,
+              socketPath: leaderSocketPath,
+            });
+            await delayTelegramBusFollowerRegistration(
+              registrationRetryDelayMs,
+            );
+          }
+        }
       } catch (error) {
         stopHeartbeat();
         activeLeaderSocketPath = undefined;
