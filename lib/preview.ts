@@ -73,6 +73,7 @@ export interface TelegramAssistantMessagePreviewStartDeps<
   getState: () => TelegramPreviewRuntimeState | undefined;
   setState: (state: TelegramPreviewRuntimeState | undefined) => void;
   createPreviewState: () => TelegramPreviewRuntimeState;
+  canSend?: () => boolean;
   finalizePreview: (chatId: number) => Promise<boolean>;
   finalizeMarkdownPreview: (
     chatId: number,
@@ -88,6 +89,7 @@ export interface TelegramAssistantMessagePreviewUpdateDeps<TMessage> {
   getState: () => TelegramPreviewRuntimeState | undefined;
   setState: (state: TelegramPreviewRuntimeState | undefined) => void;
   createPreviewState: () => TelegramPreviewRuntimeState;
+  canSend?: () => boolean;
   getMessageText: (message: TMessage) => string;
   schedulePreviewFlush: (
     chatId: number,
@@ -260,6 +262,7 @@ export function createTelegramAssistantPreviewRuntime<
       getState: controller.getState,
       setState: controller.setState,
       createPreviewState: controller.createState,
+      canSend: deps.canSend,
       finalizePreview: controller.finalize,
       finalizeMarkdownPreview,
       getMessageText: deps.getMessageText,
@@ -349,6 +352,10 @@ export async function handleTelegramAssistantMessagePreviewStart<
 ): Promise<void> {
   const turn = deps.getActiveTurn();
   if (!turn || !deps.isAssistantMessage(message)) return;
+  if (deps.canSend && !deps.canSend()) {
+    deps.setState(undefined);
+    return;
+  }
   if (shouldSuppressPreviewForVoice(turn)) {
     deps.setState(undefined);
     return;
@@ -382,6 +389,10 @@ export async function handleTelegramAssistantMessagePreviewUpdate<TMessage>(
 ): Promise<void> {
   const turn = deps.getActiveTurn();
   if (!turn || !deps.isAssistantMessage(message)) return;
+  if (deps.canSend && !deps.canSend()) {
+    deps.setState(undefined);
+    return;
+  }
   if (shouldSuppressPreviewForVoice(turn)) return;
   let state = deps.getState();
   if (!state) {

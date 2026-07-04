@@ -429,7 +429,7 @@ test("Reply runtime can send markdown through native rich messages", async () =>
   assert.deepEqual(sentBodies, []);
 });
 
-test("Reply runtime uses regular messages for anchored thread markdown replies", async () => {
+test("Reply runtime uses native rich messages for anchored thread markdown replies", async () => {
   const sentBodies: Array<Record<string, unknown>> = [];
   const richBodies: Array<Record<string, unknown>> = [];
   const target = createTelegramThreadTarget(-1007, 42);
@@ -457,15 +457,14 @@ test("Reply runtime uses regular messages for anchored thread markdown replies",
       },
       target,
     }),
-    1,
+    77,
   );
 
-  assert.deepEqual(richBodies, []);
-  assert.deepEqual(sentBodies, [
+  assert.deepEqual(sentBodies, []);
+  assert.deepEqual(richBodies, [
     {
       chat_id: -1007,
-      text: "markdown:# hello",
-      parse_mode: "HTML",
+      rich_message: { markdown: "# hello", skip_entity_detection: true },
       reply_markup: {
         inline_keyboard: [[{ text: "ok", callback_data: "noop" }]],
       },

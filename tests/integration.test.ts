@@ -491,7 +491,7 @@ test("Extension runtime finalizes queued turn after polling ownership moves away
     );
     mock.timers.tick(0);
     await flushMicrotasks(20);
-    assert.deepEqual(draftTexts, ["Draft **preview**"]);
+    assert.deepEqual(draftTexts, []);
     assert.equal(sentTexts.length, 1);
     assert.match(sentTexts[0] ?? "", /Final \*\*answer\*\*/);
     assert.deepEqual(sentBodies[0]?.reply_parameters, {

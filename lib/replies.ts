@@ -783,12 +783,7 @@ export function createTelegramRenderedMessageRuntime<TReplyMarkup>(
     },
     sendMarkdownReply: async (chatId, replyToMessageId, markdown, options) => {
       const renderingMode = deps.getAssistantRenderingMode?.() ?? "rich";
-      if (
-        renderingMode === "html" ||
-        (typeof options?.target?.threadId === "number" &&
-          replyToMessageId !== undefined &&
-          replyToMessageId > 0)
-      ) {
+      if (renderingMode === "html") {
         return deps.replyTransport.sendRenderedChunks(
           chatId,
           deps.renderTelegramMessage(markdown, { mode: "markdown" }),
