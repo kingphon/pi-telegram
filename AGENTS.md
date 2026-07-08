@@ -128,6 +128,7 @@ The core product loop is mobile continuation: start or supervise work in the ter
 - Local/domain bullets should state how a general rule applies there, or record domain-specific exceptions; they should not be the only source for a rule that applies to multiple tools, transports, domains, or docs surfaces.
 - Pi-facing tool results shown in compact tool rows should start with exactly one leading newline (`\nResult`) so the result is visually separated from the tool-call header by one blank line without excessive vertical spacing.
 - For non-trivial implementation, release, or architecture-audit work, run an `AGENTS.md` compliance pass: reread the durable principles and relevant project docs, map the changed behavior to the rules it touches, validate code/tests/docs against those rules, and explicitly surface any rule conflict, obsolete rule, or evidence-backed improvement. When the rules themselves drift from the product reality, update `AGENTS.md` or document a deliberate exception in the same pass instead of silently working around it.
+- Treat Windows Telegram runtime error reports as high-signal evidence even when Linux is the primary development environment. Windows uses different filesystem/IPC behavior and is more likely to reveal lock, heartbeat, named-pipe, atomic-rename, and Threaded Mode edge cases; minimize each report into a regression or a documented platform caveat instead of dismissing it as environment noise.
 
 ## 6.2 Validation Hotspots
 
