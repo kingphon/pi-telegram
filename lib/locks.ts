@@ -12,13 +12,11 @@ import {
   unlinkSync,
   writeFileSync,
 } from "node:fs";
-import { homedir } from "node:os";
-import { dirname, join, resolve } from "node:path";
-import { resolveAgentDir, resolveTelegramLocksPath } from "./paths.ts";
+import { dirname } from "node:path";
+import { resolveTelegramLocksPath } from "./paths.ts";
 
 export const TELEGRAM_LOCK_KEY = "@llblab/pi-telegram";
 export const TELEGRAM_BUS_LEADER_STALE_HEARTBEAT_MS = 5_000;
-
 
 function getLocksPath(): string {
   return resolveTelegramLocksPath();
