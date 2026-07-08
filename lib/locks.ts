@@ -22,6 +22,28 @@ function getLocksPath(): string {
   return resolveTelegramLocksPath();
 }
 
+/**
+ * Resolve the scoped lock key for the active Telegram profile.
+ * Default profile → @llblab/pi-telegram
+ * Named profile → @llblab/pi-telegram:<name>
+ */
+export function resolveTelegramLockKey(activeProfile?: string): string {
+  if (activeProfile) return `${TELEGRAM_LOCK_KEY}:${activeProfile}`;
+  return TELEGRAM_LOCK_KEY;
+}
+
+export interface TelegramActiveProfileRef {
+  current: string | undefined;
+}
+
+export function createTelegramLockKeyResolver(
+  activeProfileRef: TelegramActiveProfileRef,
+): () => string {
+  return function getTelegramLockKey() {
+    return resolveTelegramLockKey(activeProfileRef.current);
+  };
+}
+
 export interface TelegramLockEntry {
   pid: number;
   cwd?: string;
@@ -75,7 +97,7 @@ export interface TelegramLockContextStore<
 }
 
 export interface TelegramLockRuntimeOptions {
-  key?: string;
+  key?: string | (() => string | undefined);
   locksPath?: string;
   pid?: number;
   isProcessAlive?: (pid: number) => boolean;
@@ -232,10 +254,18 @@ export function createTelegramLockRuntime<TContext extends TelegramLockContext>(
     nowMs: getNowMs(),
     staleHeartbeatMs: options.staleHeartbeatMs,
   });
-  const readLock = () => parseTelegramLockEntry(readLocks(locksPath)[key]);
+  const resolveEffectiveKey = (): string => {
+    if (typeof key === "function") return key() || TELEGRAM_LOCK_KEY;
+    return key;
+  };
+  const readLock = () => {
+    const effectiveKey = resolveEffectiveKey();
+    return parseTelegramLockEntry(readLocks(locksPath)[effectiveKey]);
+  };
   const writeLock = (lock: TelegramLockEntry) => {
+    const effectiveKey = resolveEffectiveKey();
     const locks = readLocks(locksPath);
-    locks[key] = lock;
+    locks[effectiveKey] = lock;
     writeLocks(locksPath, locks);
   };
   return {
@@ -256,7 +286,7 @@ export function createTelegramLockRuntime<TContext extends TelegramLockContext>(
       const state = getLockState(readLock(), pid, isAlive, stateOptions());
       if (state.kind === "active-here" || state.kind === "stale") {
         const locks = readLocks(locksPath);
-        delete locks[key];
+        delete locks[resolveEffectiveKey()];
         writeLocks(locksPath, locks);
       }
       return state;
