@@ -17,6 +17,8 @@ import { resolveTelegramLocksPath } from "./paths.ts";
 
 export const TELEGRAM_LOCK_KEY = "@llblab/pi-telegram";
 export const TELEGRAM_BUS_LEADER_STALE_HEARTBEAT_MS = 5_000;
+const TELEGRAM_LOCK_WRITE_RETRY_ATTEMPTS = 5;
+const TELEGRAM_LOCK_WRITE_RETRY_DELAY_MS = 25;
 
 function getLocksPath(): string {
   return resolveTelegramLocksPath();
@@ -120,23 +122,46 @@ export function readLocks(path = getLocksPath()): Record<string, unknown> {
   }
 }
 
+function isRetryableLockWriteError(error: unknown): boolean {
+  const code = (error as { code?: unknown })?.code;
+  return code === "EPERM" || code === "EBUSY" || code === "EACCES";
+}
+
+function sleepSync(ms: number): void {
+  const buffer = new SharedArrayBuffer(4);
+  Atomics.wait(new Int32Array(buffer), 0, 0, ms);
+}
+
 export function writeLocks(path: string, locks: Record<string, unknown>): void {
   mkdirSync(dirname(path), { recursive: true });
-  const tempPath = `${path}.${process.pid}.${Date.now()}.tmp`;
-  try {
-    writeFileSync(tempPath, `${JSON.stringify(locks, null, 2)}\n`, {
-      encoding: "utf8",
-      mode: 0o600,
-    });
-    renameSync(tempPath, path);
-  } catch (error) {
+  const payload = `${JSON.stringify(locks, null, 2)}\n`;
+  let lastError: unknown;
+  for (let attempt = 0; attempt < TELEGRAM_LOCK_WRITE_RETRY_ATTEMPTS; attempt += 1) {
+    const tempPath = `${path}.${process.pid}.${Date.now()}.${attempt}.tmp`;
     try {
-      unlinkSync(tempPath);
-    } catch {
-      /* best effort */
+      writeFileSync(tempPath, payload, {
+        encoding: "utf8",
+        mode: 0o600,
+      });
+      renameSync(tempPath, path);
+      return;
+    } catch (error) {
+      lastError = error;
+      try {
+        unlinkSync(tempPath);
+      } catch {
+        /* best effort */
+      }
+      if (
+        !isRetryableLockWriteError(error) ||
+        attempt === TELEGRAM_LOCK_WRITE_RETRY_ATTEMPTS - 1
+      ) {
+        throw error;
+      }
+      sleepSync(TELEGRAM_LOCK_WRITE_RETRY_DELAY_MS * (attempt + 1));
     }
-    throw error;
   }
+  throw lastError;
 }
 
 export function parseTelegramLockEntry(
@@ -435,7 +460,11 @@ export function createTelegramLockedPollingRuntime<
     const owner = snapshotLockContext(ctx);
     stopOwnershipWatcher();
     ownershipInterval = setInterval(() => {
-      if (deps.lock.refresh(owner)) return;
+      try {
+        if (deps.lock.refresh(owner)) return;
+      } catch (error) {
+        deps.recordRuntimeEvent?.("lock", error, { phase: "refresh" });
+      }
       stopAfterOwnershipLoss();
     }, ownershipCheckMs);
     ownershipInterval.unref?.();
