@@ -4,6 +4,7 @@
  * Keeps the runtime wiring in one place while delegating reusable domain logic to /lib modules
  */
 
+import * as Ask from "./lib/ask.ts";
 import * as Bindings from "./lib/bindings.ts";
 import * as BusApi from "./lib/bus-api.ts";
 import * as Bus from "./lib/bus.ts";
@@ -197,6 +198,7 @@ export default function (pi: Pi.ExtensionAPI) {
       getAllowedUserId: configStore.getAllowedUserId,
     });
   const buttonActionStore = Outbound.createTelegramButtonActionStore();
+  const askRuntime = Ask.createTelegramAskRuntime();
   const pendingModelSwitchStore =
     Model.createPendingModelSwitchStore<
       Model.ScopedTelegramModel<ActivePiModel>
@@ -806,6 +808,7 @@ export default function (pi: Pi.ExtensionAPI) {
     settingsMenuCallbackHandler: settingsMenuRuntime.handleCallbackQuery,
     sectionRegistry,
     buttonActionStore,
+    askRuntime,
     inboundHandlerRuntime,
     threadStore,
     updateStatus,
@@ -1279,6 +1282,8 @@ export default function (pi: Pi.ExtensionAPI) {
     stopPolling: disconnectTelegramAndDeleteCurrentThread,
     getStatusLines,
     buttonActionStore,
+    askRuntime,
+    sendInteractiveMessage,
     sendMarkdownReply,
     callMultipart,
     getDefaultChatId: proactivePushChatIdGetter,

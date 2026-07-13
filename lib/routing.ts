@@ -10,6 +10,7 @@ import * as Commands from "./commands.ts";
 import type { TelegramConfigStore } from "./config.ts";
 import type { TelegramSectionRegistry } from "./sections.ts";
 import type { TelegramInboundHandlerRuntime } from "./inbound.ts";
+import * as Ask from "./ask.ts";
 import * as Media from "./media.ts";
 import * as Menu from "./menu.ts";
 import * as Model from "./model.ts";
@@ -556,6 +557,7 @@ export interface TelegramInboundRouteRuntimeDeps<
     ctx: TContext,
   ) => Promise<boolean>;
   buttonActionStore?: OutboundHandlers.TelegramButtonActionStore;
+  askRuntime?: Pick<Ask.TelegramAskRuntime, "resolveCallback" | "ownsCallback">;
   inboundHandlerRuntime: TelegramInboundHandlerRuntime<TContext>;
   threadStore?: Threads.TelegramTopicTargetStore;
   updateStatus: (ctx: TContext, error?: string) => void;
@@ -1318,6 +1320,14 @@ export function createTelegramInboundRouteRuntime<
     if (await handleUnboundRerouteRestoreMenuCallback(query, ctx)) return;
     if (await handleUnboundRerouteCallback(query, ctx)) return;
     if (await handleAllTabMenuCallback(query, ctx)) return;
+    if (deps.askRuntime?.ownsCallback(query.data)) {
+      const resolution = deps.askRuntime.resolveCallback(query.data);
+      await deps.answerCallbackQuery(
+        query.id,
+        resolution ? resolution.answer.label : "Question expired.",
+      );
+      return;
+    }
     if (deps.buttonActionStore) {
       const handled = await OutboundHandlers.handleTelegramButtonCallbackQuery(
         query,

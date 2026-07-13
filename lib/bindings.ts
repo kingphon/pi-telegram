@@ -4,6 +4,7 @@
  * Owns pi-facing tool, command, and lifecycle hook registration for the entrypoint
  */
 
+import * as Ask from "./ask.ts";
 import * as CommandTemplates from "./command-templates.ts";
 import * as Commands from "./commands.ts";
 import * as Config from "./config.ts";
@@ -44,6 +45,14 @@ interface TelegramCommandsAndToolsBindingDeps {
   stopPolling?: () => Promise<void | string>;
   getStatusLines: (options?: Status.TelegramBridgeStatusLineOptions) => string[];
   buttonActionStore: OutboundHandlers.TelegramButtonActionStore;
+  askRuntime: Pick<Ask.TelegramAskRuntime, "register">;
+  sendInteractiveMessage: (
+    chatId: number,
+    text: string,
+    mode: "markdown" | "html" | "plain",
+    replyMarkup: Ask.TelegramAskReplyMarkup,
+    options?: { target?: Queue.TelegramQueueTarget; replyToMessageId?: number },
+  ) => Promise<number | undefined>;
   sendMarkdownReply: (
     chatId: number,
     replyToMessageId: number | undefined,
@@ -68,6 +77,8 @@ export function registerTelegramCommandsAndTools({
   stopPolling,
   getStatusLines,
   buttonActionStore,
+  askRuntime,
+  sendInteractiveMessage,
   sendMarkdownReply,
   callMultipart,
   getDefaultChatId,
@@ -92,6 +103,22 @@ export function registerTelegramCommandsAndTools({
       OutboundHandlers.createTelegramOutboundReplyPlanner(buttonActionStore),
     sendMarkdownMessage: (chatId, markdown, options) =>
       sendMarkdownReply(chatId, undefined, markdown, options),
+    recordRuntimeEvent,
+  });
+  Ask.registerTelegramAskTool(pi, {
+    askRuntime,
+    canSendDirect,
+    getSender: () => {
+      const target = getDefaultTarget?.();
+      const chatId = target?.chatId ?? getDefaultChatId();
+      if (typeof chatId !== "number") return undefined;
+      return {
+        sendQuestion: (markdown, replyMarkup) =>
+          sendInteractiveMessage(chatId, markdown, "markdown", replyMarkup, {
+            ...(target ? { target } : {}),
+          }),
+      };
+    },
     recordRuntimeEvent,
   });
   Prompts.registerTelegramHelpTool(pi, {
